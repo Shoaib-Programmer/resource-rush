@@ -3,8 +3,8 @@ import { useSyncGame } from '../hooks/useSyncGame';
 import { PlayerList } from './PlayerList';
 import { useGameStore } from '../store';
 import { Button } from './ui/button';
-import { db, ref, update } from '../firebase';
 import { toast } from 'sonner';
+import startGame from '@/lib/startGame';
 
 function GameRoom() {
     const { gameId } = useParams({ from: '/game/$gameId' });
@@ -22,8 +22,13 @@ function GameRoom() {
     const handleStartGame = async () => {
         if (!canStart || !gameId) return;
         try {
-            const gameRef = ref(db, `games/${gameId}`);
-            await update(gameRef, { status: 'in-progress' });
+            // Host-only orchestration: perform single large update
+            await startGame(gameId, {
+                initialGlobalResources: 1000,
+                xRounds: 20,
+                yProfit: 500,
+                startingResources: 10,
+            });
             toast.success('Game started!');
         } catch (err) {
             console.error('Failed to start game', err);
