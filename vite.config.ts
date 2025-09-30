@@ -18,4 +18,24 @@ export default defineConfig({
             '@': path.resolve(__dirname, './src'),
         },
     },
+    build: {
+        rollupOptions: {
+            output: {
+                manualChunks(id) {
+                    if (id.includes('node_modules')) {
+                        if (id.includes('/react/')) return 'react';
+                        if (id.includes('@tanstack/react-router'))
+                            return 'router';
+                        if (id.includes('firebase')) return 'firebase';
+                        if (
+                            id.includes('lucide-react') ||
+                            id.includes('sonner')
+                        )
+                            return 'ui';
+                        return 'vendor';
+                    }
+                },
+            },
+        },
+    },
 });

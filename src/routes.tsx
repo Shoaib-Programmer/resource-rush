@@ -1,7 +1,10 @@
 import { createRootRoute, createRoute } from '@tanstack/react-router';
-import Root from './Root';
-import Lobby from './components/Lobby';
-import GameRoom from './components/GameRoom';
+import { lazy } from 'react';
+
+// Route-level code splitting
+const Root = lazy(() => import('./Root'));
+const Lobby = lazy(() => import('./components/Lobby'));
+const GameRoom = lazy(() => import('./components/GameRoom'));
 
 // Root route (app shell)
 const rootRoute = createRootRoute({ component: Root });

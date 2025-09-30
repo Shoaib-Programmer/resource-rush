@@ -10,7 +10,6 @@ import {
     push,
     update,
 } from 'firebase/database';
-import { getAnalytics } from 'firebase/analytics';
 import { getAuth, signInAnonymously } from 'firebase/auth';
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
@@ -31,13 +30,11 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
 // Get a reference to the database service
 const db = getDatabase(app);
 const auth = getAuth(app);
 
 export {
-    analytics,
     db,
     auth,
     ref,
