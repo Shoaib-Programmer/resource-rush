@@ -4,6 +4,8 @@ import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { auth } from './firebase';
 import { useGameStore } from './store';
 import { UsernamePrompt } from './components/UsernamePrompt';
+import { Toaster } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 
 function Root() {
     const { user, setUser } = useGameStore();
@@ -28,7 +30,11 @@ function Root() {
                 setUser(null);
                 signInAnonymously(auth).catch((error) => {
                     console.error('Anonymous sign-in failed:', error);
-                    // TODO: Show error message
+                    const message =
+                        error instanceof Error
+                            ? error.message
+                            : 'Unknown error';
+                    toast.error(`Sign-in failed: ${message}`);
                 });
             }
         });
@@ -37,10 +43,13 @@ function Root() {
     }, [setUser]);
 
     return (
-        <div className="p-2">
-            {showPrompt && !user?.name && <UsernamePrompt />}
-            <Outlet />
-        </div>
+        <>
+            <div className="p-2">
+                {showPrompt && !user?.name && <UsernamePrompt />}
+                <Outlet />
+            </div>
+            <Toaster />
+        </>
     );
 }
 

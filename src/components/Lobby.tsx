@@ -6,6 +6,7 @@ import { Label } from './ui/label';
 import { humanId } from '../lib/human-id';
 import { db, get, ref, set, update } from '../firebase';
 import { useGameStore } from '../store';
+import { toast } from 'sonner';
 
 export function Lobby() {
     const [joinId, setJoinId] = useState('');
@@ -15,7 +16,7 @@ export function Lobby() {
     const createGame = () => {
         if (!user) {
             console.error('You must be logged in to create a game.');
-            // TODO: Show a message to the user
+            toast.error('You must be logged in to create a game.');
             return;
         }
         const newGameId = humanId({ separator: '-', capitalize: false });
@@ -29,18 +30,31 @@ export function Lobby() {
                 },
             },
             creatorId: user.uid,
-        }).then(() => {
-            navigate({ to: '/game/$gameId', params: { gameId: newGameId } });
-        });
+        })
+            .then(() => {
+                navigate({
+                    to: '/game/$gameId',
+                    params: { gameId: newGameId },
+                });
+            })
+            .catch((error) => {
+                console.error('Failed to create game:', error);
+                const message =
+                    error instanceof Error ? error.message : 'Unknown error';
+                toast.error(`Failed to create game: ${message}`);
+            });
     };
 
     const joinGame = async () => {
         if (!user) {
             console.error('You must be logged in to join a game.');
-            // TODO: Show a message to the user
+            toast.error('You must be logged in to join a game.');
             return;
         }
-        if (!joinId.trim()) return;
+        if (!joinId.trim()) {
+            toast.error('Please enter a game ID.');
+            return;
+        }
 
         const gameId = joinId.trim();
         const gameRef = ref(db, `games/${gameId}`);
@@ -63,15 +77,17 @@ export function Lobby() {
                     });
                 } else {
                     console.error('Game is not available to join.');
-                    // TODO: Show a message to the user
+                    toast.error('Game is not available to join.');
                 }
             } else {
                 console.error('Game not found.');
-                // TODO: Show a message to the user
+                toast.error('Game not found.');
             }
         } catch (error) {
             console.error('Error joining game:', error);
-            // TODO: Show a message to the user
+            const message =
+                error instanceof Error ? error.message : 'Unknown error';
+            toast.error(`Error joining game: ${message}`);
         }
     };
 
