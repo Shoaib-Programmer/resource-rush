@@ -10,6 +10,7 @@ import {
     push,
 } from 'firebase/database';
 import { getAnalytics } from 'firebase/analytics';
+import { getAuth } from 'firebase/auth';
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -32,5 +33,6 @@ const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 // Get a reference to the database service
 const db = getDatabase(app);
+const auth = getAuth(app);
 
-export { analytics, db, ref, set, get, child, onValue, push };
+export { analytics, db, auth, ref, set, get, child, onValue, push };
