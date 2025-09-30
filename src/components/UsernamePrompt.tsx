@@ -4,25 +4,34 @@ import { auth } from '../firebase';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { useGameStore } from '@/store';
 
 export function UsernamePrompt() {
     const [username, setUsername] = useState('');
     const [error, setError] = useState('');
+    const [saving, setSaving] = useState(false);
+    const { setUser } = useGameStore();
 
     const handleSave = async () => {
+        if (saving) return;
         if (!username.trim()) {
             setError('Username cannot be empty.');
             return;
         }
         if (auth.currentUser) {
             try {
+                setSaving(true);
                 await updateProfile(auth.currentUser, {
                     displayName: username,
                 });
-                // The onAuthStateChanged listener in Root.tsx will handle the user state update
+                // Immediately update the app store so the modal hides without a reload
+                setUser({ uid: auth.currentUser.uid, name: username.trim() });
+                setError('');
             } catch (err) {
                 setError('Failed to update username. Please try again.');
                 console.error(err);
+            } finally {
+                setSaving(false);
             }
         }
     };
@@ -49,8 +58,12 @@ export function UsernamePrompt() {
                         />
                     </div>
                     {error && <p className="text-red-500 text-sm">{error}</p>}
-                    <Button onClick={handleSave} className="w-full">
-                        Save
+                    <Button
+                        onClick={handleSave}
+                        className="w-full"
+                        disabled={saving}
+                    >
+                        {saving ? 'Saving…' : 'Save'}
                     </Button>
                 </div>
             </div>
