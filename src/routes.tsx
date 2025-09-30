@@ -1,7 +1,6 @@
 import { createRootRoute, createRoute } from '@tanstack/react-router';
 import Root from './Root';
 import Lobby from './components/Lobby';
-// @ts-expect-error
 import GameRoom from './components/GameRoom';
 
 // Root route (app shell)

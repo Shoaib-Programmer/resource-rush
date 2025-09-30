@@ -36,7 +36,7 @@ export function humanId(options: Options | string | boolean = {}): string {
     } = options;
 
     let res = [
-        ...[...Array(adjectiveCount)].map((_) => random(adjectives)),
+        ...[...Array(adjectiveCount)].map(() => random(adjectives)),
         random(nouns),
         random(verbs),
         ...(addAdverb ? [random(adverbs)] : []),
