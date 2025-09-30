@@ -26,9 +26,11 @@ export function Lobby() {
             players: {
                 [user.uid]: {
                     name: user.name,
+                    isHost: true,
                     // any other initial player data
                 },
             },
+            hostId: user.uid,
             creatorId: user.uid,
         })
             .then(() => {
