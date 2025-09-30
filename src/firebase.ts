@@ -8,6 +8,7 @@ import {
     child,
     onValue,
     push,
+    update,
 } from 'firebase/database';
 import { getAnalytics } from 'firebase/analytics';
 import { getAuth } from 'firebase/auth';
@@ -35,4 +36,4 @@ const analytics = getAnalytics(app);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-export { analytics, db, auth, ref, set, get, child, onValue, push };
+export { analytics, db, auth, ref, set, get, child, onValue, push, update };

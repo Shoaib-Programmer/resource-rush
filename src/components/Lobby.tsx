@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { humanId } from '../lib/human-id';
-import { auth, db, ref, set } from '../firebase';
+import { auth, db, get, ref, set, update } from '../firebase';
 
 export function Lobby() {
     const [joinId, setJoinId] = useState('');
@@ -41,9 +41,45 @@ export function Lobby() {
         });
     };
 
-    const joinGame = () => {
+    const joinGame = async () => {
+        if (!user) {
+            console.error('You must be logged in to join a game.');
+            // TODO: Show a message to the user
+            return;
+        }
         if (!joinId.trim()) return;
-        navigate({ to: '/game/$gameId', params: { gameId: joinId.trim() } });
+
+        const gameId = joinId.trim();
+        const gameRef = ref(db, `games/${gameId}`);
+
+        try {
+            const snapshot = await get(gameRef);
+            if (snapshot.exists()) {
+                const gameData = snapshot.val();
+                if (gameData.status === 'waiting') {
+                    // Add player to the game
+                    const playerRef = ref(db, `games/${gameId}/players`);
+                    await update(playerRef, {
+                        [user.uid]: {
+                            name: user.displayName || 'Anonymous',
+                        },
+                    });
+                    navigate({
+                        to: '/game/$gameId',
+                        params: { gameId: gameId },
+                    });
+                } else {
+                    console.error('Game is not available to join.');
+                    // TODO: Show a message to the user
+                }
+            } else {
+                console.error('Game not found.');
+                // TODO: Show a message to the user
+            }
+        } catch (error) {
+            console.error('Error joining game:', error);
+            // TODO: Show a message to the user
+        }
     };
 
     return (
