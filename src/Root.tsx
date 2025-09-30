@@ -44,7 +44,7 @@ function Root() {
 
     return (
         <>
-            <div className="p-2">
+            <div className="mx-auto">
                 {showPrompt && !user?.name && <UsernamePrompt />}
                 <Outlet />
             </div>
