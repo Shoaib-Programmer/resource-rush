@@ -1,6 +1,5 @@
 import { db, ref, get, update } from '@/firebase';
-
-export type Role = 'Exploiter' | 'Environmentalist' | 'Moderate';
+import type { Role } from '@/types';
 
 export interface StartGameOptions {
     initialGlobalResources?: number; // default 1000
@@ -68,6 +67,9 @@ export async function startGame(
     // Assign roles
     const roles = generateRoles(playerIds.length);
 
+    // Generate initial round seed for deterministic randomness
+    const initialSeed = `${gameId}_round_1_${Date.now()}`;
+
     // Build a single multi-path update object
     const updates: Record<string, unknown> = {};
 
@@ -76,8 +78,10 @@ export async function startGame(
     updates[`games/${gameId}/config`] = { xRounds, yProfit };
     updates[`games/${gameId}/gameState`] = {
         currentRound: 1,
+        currentPhase: 'extraction',
         globalResources: initialGlobalResources,
         revealedExtraction: null,
+        roundSeed: initialSeed,
     };
 
     // Player public state and private roles

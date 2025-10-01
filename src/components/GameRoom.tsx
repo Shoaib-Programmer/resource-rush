@@ -5,6 +5,10 @@ import { useGameStore } from '../store';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 import startGame from '@/lib/startGame';
+import { ExtractionPhase } from './ExtractionPhase';
+import { RevealPhase } from './RevealPhase';
+import { ActionPhase } from './ActionPhase';
+import { useHostRoundProcessor } from '@/hooks/useHostRoundProcessor';
 
 function GameRoom() {
     const { gameId } = useParams({ from: '/game/$gameId' });
@@ -16,6 +20,9 @@ function GameRoom() {
         ((game?.hostId && game.hostId === user.uid) ||
             game?.players?.[user.uid]?.isHost === true ||
             game?.creatorId === user.uid);
+
+    // Auto-process rounds when all players submit (host only)
+    useHostRoundProcessor(gameId, user?.uid, isHost);
 
     const canStart = isHost && game?.status === 'waiting' && !!gameId;
 
@@ -38,6 +45,72 @@ function GameRoom() {
         }
     };
 
+    // Render different phases based on game state
+    const renderGameContent = () => {
+        if (!game || !user) return null;
+
+        if (game.status === 'waiting') {
+            return (
+                <>
+                    <PlayerList />
+                    <div className="text-sm text-muted-foreground">
+                        Waiting for host to start the game...
+                    </div>
+                </>
+            );
+        }
+
+        if (game.status === 'completed') {
+            return (
+                <div className="text-center space-y-4">
+                    <h2 className="text-3xl font-bold">Game Over!</h2>
+                    <PlayerList />
+                    <div className="text-muted-foreground">
+                        The game has ended. Check the final scores above.
+                    </div>
+                </div>
+            );
+        }
+
+        if (game.status === 'in-progress') {
+            const phase = game.gameState?.currentPhase;
+
+            if (phase === 'extraction') {
+                return (
+                    <ExtractionPhase
+                        game={game}
+                        gameId={gameId}
+                        userId={user.uid}
+                    />
+                );
+            }
+
+            if (phase === 'reveal') {
+                return (
+                    <RevealPhase
+                        game={game}
+                        gameId={gameId}
+                        userId={user.uid}
+                        isHost={isHost}
+                    />
+                );
+            }
+
+            if (phase === 'action') {
+                return (
+                    <ActionPhase
+                        game={game}
+                        gameId={gameId}
+                        userId={user.uid}
+                        isHost={isHost}
+                    />
+                );
+            }
+        }
+
+        return <PlayerList />;
+    };
+
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -46,12 +119,7 @@ function GameRoom() {
                     <Button onClick={handleStartGame}>Start Game</Button>
                 )}
             </div>
-            <PlayerList />
-            {game?.status && (
-                <div className="text-sm text-muted-foreground">
-                    Status: {game.status}
-                </div>
-            )}
+            {renderGameContent()}
         </div>
     );
 }
