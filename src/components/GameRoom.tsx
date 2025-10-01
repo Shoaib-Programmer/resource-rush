@@ -62,10 +62,21 @@ function GameRoom() {
             );
         }
 
-        if (game.status === 'completed') {
+        if (game.status === 'finished') {
+            const winner = game.gameState?.winner;
             return (
                 <div className="text-center space-y-4">
                     <h2 className="text-3xl font-bold">Game Over!</h2>
+                    {winner && (
+                        <div className="text-2xl font-semibold">
+                            {winner === 'Environmentalists' &&
+                                '🌍 Environmentalists Win!'}
+                            {winner === 'Exploiters' && '💰 Exploiters Win!'}
+                            {winner !== 'Environmentalists' &&
+                                winner !== 'Exploiters' &&
+                                `Winner: ${game.players[winner]?.name || winner}`}
+                        </div>
+                    )}
                     <PlayerList />
                     <div className="text-muted-foreground">
                         The game has ended. Check the final scores above.
@@ -103,7 +114,7 @@ function GameRoom() {
     };
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 p-4">
             <div className="flex items-center justify-between">
                 <h2 className="text-2xl">Game Room: {gameId}</h2>
                 {canStart && (

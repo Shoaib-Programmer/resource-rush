@@ -29,6 +29,7 @@ export interface GameState {
     investigations?: {
         [investigatorId: string]: string; // investigatorId -> targetPlayerId (who they investigated)
     };
+    winner?: string; // Winner of the game (e.g., 'Environmentalists', 'Exploiters', or a player ID)
 }
 
 export interface GameConfig {
@@ -42,7 +43,7 @@ export interface RoundSubmission {
 
 export interface Game {
     players: { [id: string]: Player };
-    status: 'waiting' | 'in-progress' | 'completed';
+    status: 'waiting' | 'in-progress' | 'finished';
     hostId?: string;
     creatorId?: string;
     gameState?: GameState;

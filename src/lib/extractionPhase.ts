@@ -3,6 +3,21 @@ import seedrandom from 'seedrandom';
 import type { Game, RoundSubmission } from '@/types';
 
 /**
+ * EXTRACTION PHASE AND WIN/LOSS CONDITIONS
+ *
+ * This module handles the extraction phase of the game and determines win/loss conditions.
+ * All calculations use seedrandom for deterministic randomness to prevent cheating.
+ *
+ * Win/Loss Conditions:
+ * 1. Environmentalist Loss / Exploiter Win: globalResources <= 0
+ * 2. Exploiter Win: totalExploiterProfit >= yProfit
+ * 3. Player Elimination: Players with resources <= 0 or Exploiters arrested >= 3 times
+ * 4. Environmentalist Win: Survive all xRounds with globalResources > 0
+ * 5. Team Elimination: All Exploiters eliminated = Environmentalists win
+ *                      All Environmentalists eliminated = Exploiters win
+ */
+
+/**
  * Submit a player's extraction amount for the current round
  */
 export async function submitExtraction(
@@ -113,19 +128,33 @@ export async function processRound(
     updates[`games/${gameId}/gameState/revealedExtraction`] =
         submissions[revealedPlayerId];
 
-    // Update player resources (extraction + fees)
+    // Update player resources (extraction + fees) and check for elimination
+    const MINIMUM_RESOURCE_THRESHOLD = 0;
+    const MAX_ARRESTS = 3;
+
     Object.entries(result.playerRewards).forEach(([playerId, netReward]) => {
         const currentResources = game.players[playerId]?.resources ?? 0;
-        updates[`games/${gameId}/players/${playerId}/resources`] = Math.max(
-            0,
-            currentResources + netReward,
-        );
+        const newResources = Math.max(0, currentResources + netReward);
+        const role = game.privatePlayerInfo?.[playerId]?.role;
+        const timesArrested = game.players[playerId]?.timesArrested ?? 0;
+
+        updates[`games/${gameId}/players/${playerId}/resources`] = newResources;
+
+        // Check for player elimination
+        if (newResources <= MINIMUM_RESOURCE_THRESHOLD) {
+            updates[`games/${gameId}/players/${playerId}/status`] = 'inactive';
+        }
+
+        // Check if Exploiter has been arrested too many times
+        if (role === 'Exploiter' && timesArrested >= MAX_ARRESTS) {
+            updates[`games/${gameId}/players/${playerId}/status`] = 'inactive';
+        }
     });
 
     // Check win/loss conditions
     const winLossResult = checkWinLossConditions(game, result);
     if (winLossResult.gameEnded) {
-        updates[`games/${gameId}/status`] = 'completed';
+        updates[`games/${gameId}/status`] = 'finished';
         updates[`games/${gameId}/gameState/winner`] = winLossResult.winner;
     }
 
@@ -192,6 +221,7 @@ export function calculateRoundResult(
 
 /**
  * Check for win/loss conditions after round processing
+ * Uses seedrandom for deterministic checks to prevent cheating
  */
 function checkWinLossConditions(
     game: Game,
@@ -203,46 +233,101 @@ function checkWinLossConditions(
     },
 ): { gameEnded: boolean; winner?: string } {
     const yProfit = game.config?.yProfit ?? 500;
-    const maxRounds = game.config?.xRounds ?? 20;
+    const xRounds = game.config?.xRounds ?? 20;
     const currentRound = game.gameState?.currentRound ?? 1;
+    const seed = game.gameState?.roundSeed ?? `${game}_round_${currentRound}`;
 
-    // Check if any player reached the profit target
-    for (const [playerId, reward] of Object.entries(
-        roundResult.playerRewards,
-    )) {
+    // Initialize RNG with seed for deterministic checks
+    seedrandom(seed, { global: true });
+
+    // Calculate updated player resources
+    const updatedPlayerResources: Record<string, number> = {};
+    Object.entries(roundResult.playerRewards).forEach(([playerId, reward]) => {
         const currentResources = game.players[playerId]?.resources ?? 0;
-        const newTotal = currentResources + reward;
+        updatedPlayerResources[playerId] = Math.max(
+            0,
+            currentResources + reward,
+        );
+    });
 
-        if (newTotal >= yProfit) {
-            return { gameEnded: true, winner: playerId };
-        }
-    }
-
-    // Check if global resources are depleted
+    // 1. Check Environmentalist Loss: if (globalResources <= 0)
     if (roundResult.newGlobalResources <= 0) {
-        // Game ends, but no winner (stalemate)
-        return { gameEnded: true };
+        return { gameEnded: true, winner: 'Exploiters' };
     }
 
-    // Check if this was the last round
-    if (currentRound >= maxRounds) {
-        // Find player with most resources
-        let maxResources = -1;
-        let winner: string | undefined;
+    // 2. Check Exploiter Win: if (totalExploiterProfit >= yProfit)
+    // Calculate total profit for Exploiters
+    let totalExploiterProfit = 0;
+    Object.keys(game.players).forEach((playerId) => {
+        const role = game.privatePlayerInfo?.[playerId]?.role;
+        if (role === 'Exploiter') {
+            totalExploiterProfit += updatedPlayerResources[playerId] || 0;
+        }
+    });
 
-        for (const [playerId, reward] of Object.entries(
-            roundResult.playerRewards,
-        )) {
-            const currentResources = game.players[playerId]?.resources ?? 0;
-            const newTotal = currentResources + reward;
+    if (totalExploiterProfit >= yProfit) {
+        return { gameEnded: true, winner: 'Exploiters' };
+    }
 
-            if (newTotal > maxResources) {
-                maxResources = newTotal;
-                winner = playerId;
-            }
+    // 3. Check Player Elimination
+    // Define minimum resource thresholds (can be adjusted based on game design)
+    // For now, using a simple threshold: players with 0 resources are eliminated
+    const MINIMUM_RESOURCE_THRESHOLD = 0;
+    const MAX_ARRESTS = 3; // Maximum times an Exploiter can be arrested
+
+    Object.entries(game.players).forEach(([playerId, player]) => {
+        const resources = updatedPlayerResources[playerId] || 0;
+        const role = game.privatePlayerInfo?.[playerId]?.role;
+        const timesArrested = player.timesArrested ?? 0;
+
+        // Check if player is below minimum threshold
+        if (resources <= MINIMUM_RESOURCE_THRESHOLD) {
+            // Mark player as eliminated (inactive)
+            // This will be applied in the update
+            player.status = 'inactive';
         }
 
-        return { gameEnded: true, winner };
+        // Check if Exploiter has been arrested too many times
+        if (role === 'Exploiter' && timesArrested >= MAX_ARRESTS) {
+            player.status = 'inactive';
+        }
+    });
+
+    // 4. Check Environmentalist Win: if (currentRound > xRounds)
+    // Note: This checks if we've completed all rounds
+    if (currentRound >= xRounds) {
+        // Environmentalists win if they made it through all rounds
+        // and global resources are still positive
+        if (roundResult.newGlobalResources > 0) {
+            return { gameEnded: true, winner: 'Environmentalists' };
+        } else {
+            // If resources depleted on final round, Exploiters win
+            return { gameEnded: true, winner: 'Exploiters' };
+        }
+    }
+
+    // Check if all Exploiters are eliminated (Environmentalists win)
+    const activeExploiters = Object.keys(game.players).filter((playerId) => {
+        const role = game.privatePlayerInfo?.[playerId]?.role;
+        const player = game.players[playerId];
+        return role === 'Exploiter' && player.status !== 'inactive';
+    });
+
+    if (activeExploiters.length === 0) {
+        return { gameEnded: true, winner: 'Environmentalists' };
+    }
+
+    // Check if all Environmentalists are eliminated (Exploiters win)
+    const activeEnvironmentalists = Object.keys(game.players).filter(
+        (playerId) => {
+            const role = game.privatePlayerInfo?.[playerId]?.role;
+            const player = game.players[playerId];
+            return role === 'Environmentalist' && player.status !== 'inactive';
+        },
+    );
+
+    if (activeEnvironmentalists.length === 0) {
+        return { gameEnded: true, winner: 'Exploiters' };
     }
 
     return { gameEnded: false };
@@ -279,7 +364,7 @@ export async function advancePhase(
     if (currentPhase === 'action') {
         // Move to next round or end game
         if (currentRound >= maxRounds) {
-            updates[`games/${gameId}/status`] = 'completed';
+            updates[`games/${gameId}/status`] = 'finished';
         } else {
             const nextRound = currentRound + 1;
             const nextSeed = `${gameId}_round_${nextRound}_${Date.now()}`;
