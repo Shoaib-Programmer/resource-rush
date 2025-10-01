@@ -289,6 +289,16 @@ export async function advancePhase(
             updates[`games/${gameId}/gameState/roundSeed`] = nextSeed;
             updates[`games/${gameId}/gameState/revealedExtraction`] = null;
             updates[`games/${gameId}/gameState/roundFees`] = null;
+            updates[`games/${gameId}/gameState/currentVote`] = null;
+            updates[`games/${gameId}/gameState/investigations`] = null;
+
+            // Release jailed players (they serve 1 round)
+            Object.keys(game.players).forEach((playerId) => {
+                if (game.players[playerId]?.isJailed) {
+                    updates[`games/${gameId}/players/${playerId}/isJailed`] =
+                        false;
+                }
+            });
         }
     }
 

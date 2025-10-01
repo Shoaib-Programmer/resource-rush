@@ -10,6 +10,14 @@ export interface Player {
     status?: 'active' | 'inactive';
 }
 
+export interface VoteData {
+    nominatedBy: string; // player who started the vote
+    targetPlayer: string; // player being voted against
+    votesFor: string[]; // array of player IDs who voted for arrest
+    votesAgainst: string[]; // array of player IDs who voted against
+    resolved: boolean; // whether the vote has been resolved
+}
+
 export interface GameState {
     currentRound: number;
     currentPhase?: GamePhase;
@@ -17,6 +25,10 @@ export interface GameState {
     revealedExtraction: number | null;
     roundSeed?: string; // Deterministic seed for the current round
     roundFees?: Record<string, number>; // playerId -> resource fee for this round
+    currentVote?: VoteData | null; // current active vote
+    investigations?: {
+        [investigatorId: string]: string; // investigatorId -> targetPlayerId (who they investigated)
+    };
 }
 
 export interface GameConfig {
