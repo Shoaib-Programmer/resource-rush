@@ -22,6 +22,13 @@ import {
 } from '@/lib/actionPhase';
 import { toast } from 'sonner';
 import { useState } from 'react';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from './ui/select';
 
 interface ActionPhaseProps {
     game: Game;
@@ -172,7 +179,7 @@ export function ActionPhase({
     };
 
     return (
-        <Card className="w-full max-w-2xl">
+        <Card className="mx-auto w-full max-w-screen-2xl">
             <CardHeader>
                 <CardTitle>Action Phase - Round {currentRound}</CardTitle>
                 <CardDescription>
@@ -181,83 +188,78 @@ export function ActionPhase({
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="space-y-6">
-                    {/* Round Results */}
-                    <div className="p-6 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-                        <h3 className="font-semibold mb-4 text-blue-900 dark:text-blue-100">
-                            Round {currentRound} Results
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="text-center">
-                                <div className="text-sm text-blue-700 dark:text-blue-300">
-                                    Revealed Extraction
+                <div className="space-y-5">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {/* Round Results */}
+                        <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                            <div className="flex items-center justify-between">
+                                <div className="text-sm">
+                                    Revealed
+                                    <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                                        {revealedExtraction}
+                                    </div>
                                 </div>
-                                <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                                    {revealedExtraction}
-                                </div>
-                            </div>
-                            <div className="text-center">
-                                <div className="text-sm text-blue-700 dark:text-blue-300">
+                                <div className="text-sm">
                                     Your Fee
+                                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                                        -{myFee}
+                                    </div>
                                 </div>
-                                <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                                    -{myFee}
+                            </div>
+                        </div>
+
+                        {/* Resource Stats */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="p-4 bg-muted rounded-lg">
+                                <div className="text-xs text-muted-foreground">
+                                    Your Resources
+                                </div>
+                                <div className="text-2xl font-bold">
+                                    {myResources}
+                                </div>
+                            </div>
+                            <div className="p-4 bg-muted rounded-lg">
+                                <div className="text-xs text-muted-foreground">
+                                    Global Resources
+                                </div>
+                                <div className="text-2xl font-bold">
+                                    {globalResources}
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Resource Stats */}
-                    <div className="grid grid-cols-2 gap-4">
+                        {/* Round Progress */}
                         <div className="p-4 bg-muted rounded-lg">
-                            <div className="text-sm text-muted-foreground">
-                                Your Resources
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-xs font-medium">
+                                    Progress
+                                </span>
+                                <span className="text-xs font-bold">
+                                    {currentRound} / {maxRounds}
+                                </span>
                             </div>
-                            <div className="text-2xl font-bold">
-                                {myResources}
+                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                                <div
+                                    className="bg-primary h-3 rounded-full transition-all"
+                                    style={{
+                                        width: `${(currentRound / maxRounds) * 100}%`,
+                                    }}
+                                />
                             </div>
-                        </div>
-                        <div className="p-4 bg-muted rounded-lg">
-                            <div className="text-sm text-muted-foreground">
-                                Global Resources
-                            </div>
-                            <div className="text-2xl font-bold">
-                                {globalResources}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Round Progress */}
-                    <div className="p-4 bg-muted rounded-lg">
-                        <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium">
-                                Round Progress:
-                            </span>
-                            <span className="text-sm font-bold">
-                                {currentRound} / {maxRounds}
-                            </span>
-                        </div>
-                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                            <div
-                                className="bg-primary h-2 rounded-full transition-all"
-                                style={{
-                                    width: `${(currentRound / maxRounds) * 100}%`,
-                                }}
-                            />
                         </div>
                     </div>
 
                     {/* Issue Card / Fee Display */}
                     {myFee > 0 && (
-                        <div className="p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
-                            <h4 className="font-semibold text-red-900 dark:text-red-100 mb-2">
-                                🎴 Issue Card
-                            </h4>
-                            <p className="text-sm text-red-700 dark:text-red-300">
-                                You've been charged a fee of{' '}
-                                <strong>{myFee}</strong> resources this round.
-                                This has been automatically deducted.
-                            </p>
+                        <div className="px-3 py-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md flex items-center gap-2 text-sm">
+                            <span className="text-base">🎴</span>
+                            <span className="font-medium text-red-900 dark:text-red-100">
+                                Issue
+                            </span>
+                            <span className="text-red-800 dark:text-red-300">
+                                Fee charged: <strong>{myFee}</strong> resources
+                                this round.
+                            </span>
                         </div>
                     )}
 
@@ -277,24 +279,21 @@ export function ActionPhase({
                         <>
                             <Separator />
 
-                            {/* Action Buttons */}
-                            <div className="space-y-4">
+                            {/* Action Buttons in responsive grid to reduce scrolling */}
+                            <div className="space-y-3">
                                 <h3 className="font-semibold text-lg">
                                     Available Actions
                                 </h3>
-
-                                {/* Investigate Action */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-base">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                                    {/* Investigate Action */}
+                                    <section className="rounded-lg border p-4 h-full">
+                                        <div className="mb-1 font-medium">
                                             🔍 Investigate a Player
-                                        </CardTitle>
-                                        <CardDescription>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground mb-4">
                                             Discover how many resources a player
                                             extracted this round
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
+                                        </p>
                                         {hasInvestigated ? (
                                             <div className="text-sm text-muted-foreground">
                                                 ✓ You investigated{' '}
@@ -324,33 +323,35 @@ export function ActionPhase({
                                                     <Label htmlFor="investigate-target">
                                                         Select Player
                                                     </Label>
-                                                    <select
-                                                        id="investigate-target"
+                                                    <Select
                                                         value={
                                                             selectedInvestigateTarget
                                                         }
-                                                        onChange={(e) =>
-                                                            setSelectedInvestigateTarget(
-                                                                e.target.value,
-                                                            )
+                                                        onValueChange={
+                                                            setSelectedInvestigateTarget
                                                         }
-                                                        className="w-full mt-1 p-2 border rounded-md bg-background"
                                                     >
-                                                        <option value="">
-                                                            -- Choose a player
-                                                            --
-                                                        </option>
-                                                        {otherPlayers.map(
-                                                            ({ id, name }) => (
-                                                                <option
-                                                                    key={id}
-                                                                    value={id}
-                                                                >
-                                                                    {name}
-                                                                </option>
-                                                            ),
-                                                        )}
-                                                    </select>
+                                                        <SelectTrigger className="w-full mt-1">
+                                                            <SelectValue placeholder="-- Choose a player --" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {otherPlayers.map(
+                                                                ({
+                                                                    id,
+                                                                    name,
+                                                                }) => (
+                                                                    <SelectItem
+                                                                        key={id}
+                                                                        value={
+                                                                            id
+                                                                        }
+                                                                    >
+                                                                        {name}
+                                                                    </SelectItem>
+                                                                ),
+                                                            )}
+                                                        </SelectContent>
+                                                    </Select>
                                                 </div>
                                                 <Button
                                                     onClick={handleInvestigate}
@@ -363,21 +364,17 @@ export function ActionPhase({
                                                 </Button>
                                             </div>
                                         )}
-                                    </CardContent>
-                                </Card>
+                                    </section>
 
-                                {/* Vote to Arrest */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-base">
+                                    {/* Vote to Arrest */}
+                                    <section className="rounded-lg border p-4 h-full">
+                                        <div className="mb-1 font-medium">
                                             ⚖️ Vote to Arrest
-                                        </CardTitle>
-                                        <CardDescription>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground mb-4">
                                             Nominate a player for arrest or vote
                                             on active nomination
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
+                                        </p>
                                         {currentVote &&
                                         !currentVote.resolved ? (
                                             <div className="space-y-3">
@@ -481,33 +478,35 @@ export function ActionPhase({
                                                         Select Player to
                                                         Nominate
                                                     </Label>
-                                                    <select
-                                                        id="nominate-target"
+                                                    <Select
                                                         value={
                                                             selectedNominateTarget
                                                         }
-                                                        onChange={(e) =>
-                                                            setSelectedNominateTarget(
-                                                                e.target.value,
-                                                            )
+                                                        onValueChange={
+                                                            setSelectedNominateTarget
                                                         }
-                                                        className="w-full mt-1 p-2 border rounded-md bg-background"
                                                     >
-                                                        <option value="">
-                                                            -- Choose a player
-                                                            --
-                                                        </option>
-                                                        {otherPlayers.map(
-                                                            ({ id, name }) => (
-                                                                <option
-                                                                    key={id}
-                                                                    value={id}
-                                                                >
-                                                                    {name}
-                                                                </option>
-                                                            ),
-                                                        )}
-                                                    </select>
+                                                        <SelectTrigger className="w-full mt-1">
+                                                            <SelectValue placeholder="-- Choose a player --" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {otherPlayers.map(
+                                                                ({
+                                                                    id,
+                                                                    name,
+                                                                }) => (
+                                                                    <SelectItem
+                                                                        key={id}
+                                                                        value={
+                                                                            id
+                                                                        }
+                                                                    >
+                                                                        {name}
+                                                                    </SelectItem>
+                                                                ),
+                                                            )}
+                                                        </SelectContent>
+                                                    </Select>
                                                 </div>
                                                 <Button
                                                     onClick={handleNominate}
@@ -520,21 +519,17 @@ export function ActionPhase({
                                                 </Button>
                                             </div>
                                         )}
-                                    </CardContent>
-                                </Card>
+                                    </section>
 
-                                {/* Replant Resources */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-base">
+                                    {/* Replant Resources */}
+                                    <section className="rounded-lg border p-4 h-full">
+                                        <div className="mb-1 font-medium">
                                             🌱 Replant Resources
-                                        </CardTitle>
-                                        <CardDescription>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground mb-4">
                                             Convert your personal resources back
                                             to the global pool
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
+                                        </p>
                                         <div className="space-y-3">
                                             <div>
                                                 <Label htmlFor="replant-amount">
@@ -567,8 +562,8 @@ export function ActionPhase({
                                                 Replant Resources
                                             </Button>
                                         </div>
-                                    </CardContent>
-                                </Card>
+                                    </section>
+                                </div>
                             </div>
 
                             <Separator />

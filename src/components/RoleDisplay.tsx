@@ -1,5 +1,4 @@
-import { Badge } from './ui/badge';
-import { Card, CardContent } from './ui/card';
+import { cn } from '@/lib/utils';
 import type { Role } from '@/types';
 
 interface RoleDisplayProps {
@@ -33,25 +32,19 @@ export function RoleDisplay({ role }: RoleDisplayProps) {
     const info = roleInfo[role];
 
     return (
-        <Card className={`border-2 ${info.color}`}>
-            <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <span className="text-3xl">{info.icon}</span>
-                        <div>
-                            <div className="font-bold text-lg">
-                                Your Role: {role}
-                            </div>
-                            <div className="text-sm opacity-90">
-                                {info.description}
-                            </div>
-                        </div>
-                    </div>
-                    <Badge variant="secondary" className="text-xs">
-                        Secret
-                    </Badge>
-                </div>
-            </CardContent>
-        </Card>
+        <div className="mx-auto w-full">
+            <div
+                className={cn(
+                    'rounded-md border px-3 py-2 text-sm flex items-center gap-2',
+                    info.color,
+                )}
+            >
+                <span className="text-lg leading-none">{info.icon}</span>
+                <span className="font-semibold tracking-tight">{role}</span>
+                <span className="text-muted-foreground hidden md:inline">
+                    • {info.description}
+                </span>
+            </div>
+        </div>
     );
 }

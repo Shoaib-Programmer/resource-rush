@@ -79,7 +79,7 @@ export function ExtractionPhase({
 
     if (isJailed) {
         return (
-            <Card className="w-full max-w-2xl">
+            <Card className="mx-auto w-full max-w-screen-xl">
                 <CardHeader>
                     <CardTitle>
                         Extraction Phase - Round {currentRound}
@@ -110,7 +110,7 @@ export function ExtractionPhase({
     }
 
     return (
-        <Card className="w-full max-w-2xl">
+        <Card className="mx-auto w-full max-w-screen-xl">
             <CardHeader>
                 <CardTitle>Extraction Phase - Round {currentRound}</CardTitle>
                 <CardDescription>
@@ -120,7 +120,7 @@ export function ExtractionPhase({
             <CardContent>
                 <div className="space-y-6">
                     {/* Resource Stats */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="p-4 bg-muted rounded-lg">
                             <div className="text-sm text-muted-foreground">
                                 Your Resources

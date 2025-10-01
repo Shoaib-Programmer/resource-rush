@@ -114,7 +114,7 @@ function GameRoom() {
     };
 
     return (
-        <div className="space-y-4 p-4">
+        <div className="space-y-4 p-4 md:p-6 mx-auto max-w-screen-2xl">
             <div className="flex items-center justify-between">
                 <h2 className="text-2xl">Game Room: {gameId}</h2>
                 {canStart && (
