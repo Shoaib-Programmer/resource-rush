@@ -7,12 +7,15 @@ import { toast } from 'sonner';
 import { ExtractionPhase } from './ExtractionPhase';
 import { ActionPhase } from './ActionPhase';
 import { useHostRoundProcessor } from '@/hooks/useHostRoundProcessor';
+import { usePlayerRole } from '@/hooks/usePlayerRole';
+import { RoleDisplay } from './RoleDisplay';
 import startGame from '@/lib/startGame';
 
 function GameRoom() {
     const { gameId } = useParams({ from: '/game/$gameId' });
     useSyncGame(gameId);
     const { game, user } = useGameStore();
+    const playerRole = usePlayerRole(gameId, user?.uid);
 
     const isHost =
         !!user &&
@@ -74,26 +77,26 @@ function GameRoom() {
         if (game.status === 'in-progress') {
             const phase = game.gameState?.currentPhase;
 
-            if (phase === 'extraction') {
-                return (
-                    <ExtractionPhase
-                        game={game}
-                        gameId={gameId}
-                        userId={user.uid}
-                    />
-                );
-            }
-
-            if (phase === 'action') {
-                return (
-                    <ActionPhase
-                        game={game}
-                        gameId={gameId}
-                        userId={user.uid}
-                        isHost={isHost}
-                    />
-                );
-            }
+            return (
+                <div className="space-y-4">
+                    <RoleDisplay role={playerRole} />
+                    {phase === 'extraction' && (
+                        <ExtractionPhase
+                            game={game}
+                            gameId={gameId}
+                            userId={user.uid}
+                        />
+                    )}
+                    {phase === 'action' && (
+                        <ActionPhase
+                            game={game}
+                            gameId={gameId}
+                            userId={user.uid}
+                            isHost={isHost}
+                        />
+                    )}
+                </div>
+            );
         }
 
         return <PlayerList />;
