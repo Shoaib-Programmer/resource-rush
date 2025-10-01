@@ -29,9 +29,12 @@ export function ActionPhase({
     const currentRound = game.gameState?.currentRound ?? 1;
     const maxRounds = game.config?.xRounds ?? 20;
     const globalResources = game.gameState?.globalResources ?? 0;
+    const revealedExtraction = game.gameState?.revealedExtraction ?? 0;
+    const roundFees = game.gameState?.roundFees ?? {};
 
     const player = game.players[userId];
     const myResources = player?.resources ?? 0;
+    const myFee = roundFees[userId] ?? 0;
 
     const handleAdvance = async () => {
         setIsAdvancing(true);
@@ -65,6 +68,31 @@ export function ActionPhase({
             </CardHeader>
             <CardContent>
                 <div className="space-y-6">
+                    {/* Round Results */}
+                    <div className="p-6 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                        <h3 className="font-semibold mb-4 text-blue-900 dark:text-blue-100">
+                            Round {currentRound} Results
+                        </h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="text-center">
+                                <div className="text-sm text-blue-700 dark:text-blue-300">
+                                    Revealed Extraction
+                                </div>
+                                <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                                    {revealedExtraction}
+                                </div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-sm text-blue-700 dark:text-blue-300">
+                                    Your Fee
+                                </div>
+                                <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                                    -{myFee}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Resource Stats */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 bg-muted rounded-lg">

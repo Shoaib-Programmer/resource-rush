@@ -94,25 +94,40 @@ export async function processRound(
     const submissions = game.roundSubmissions?.[roundKey] ?? {};
     const seed = game.gameState?.roundSeed ?? `${gameId}_round_${currentRound}`;
 
-    // Calculate total extraction using deterministic randomness
+    // Calculate round result using deterministic randomness
     const result = calculateRoundResult(game, submissions, seed);
 
     // Prepare updates
     const updates: Record<string, unknown> = {};
 
-    // Update game state to reveal phase
-    updates[`games/${gameId}/gameState/currentPhase`] = 'reveal';
-    updates[`games/${gameId}/gameState/revealedExtraction`] =
-        result.totalExtraction;
+    // Update game state to action phase (skip reveal phase)
+    updates[`games/${gameId}/gameState/currentPhase`] = 'action';
     updates[`games/${gameId}/gameState/globalResources`] =
         result.newGlobalResources;
+    updates[`games/${gameId}/gameState/roundFees`] = result.roundFees;
 
-    // Update player resources
-    Object.entries(result.playerRewards).forEach(([playerId, reward]) => {
+    // Randomly select one player's submission for revealedExtraction
+    const playerIds = Object.keys(submissions);
+    const randomIndex = Math.floor(Math.random() * playerIds.length);
+    const revealedPlayerId = playerIds[randomIndex];
+    updates[`games/${gameId}/gameState/revealedExtraction`] =
+        submissions[revealedPlayerId];
+
+    // Update player resources (extraction + fees)
+    Object.entries(result.playerRewards).forEach(([playerId, netReward]) => {
         const currentResources = game.players[playerId]?.resources ?? 0;
-        updates[`games/${gameId}/players/${playerId}/resources`] =
-            currentResources + reward;
+        updates[`games/${gameId}/players/${playerId}/resources`] = Math.max(
+            0,
+            currentResources + netReward,
+        );
     });
+
+    // Check win/loss conditions
+    const winLossResult = checkWinLossConditions(game, result);
+    if (winLossResult.gameEnded) {
+        updates[`games/${gameId}/status`] = 'completed';
+        updates[`games/${gameId}/gameState/winner`] = winLossResult.winner;
+    }
 
     await update(ref(db), updates);
 }
@@ -129,9 +144,9 @@ export function calculateRoundResult(
     totalExtraction: number;
     newGlobalResources: number;
     playerRewards: Record<string, number>;
+    roundFees: Record<string, number>;
 } {
     // Initialize RNG with seed for deterministic randomness
-    // This can be used for future random events/modifiers
     seedrandom(seed, { global: true });
     const currentGlobalResources = game.gameState?.globalResources ?? 0;
 
@@ -153,11 +168,84 @@ export function calculateRoundResult(
         currentGlobalResources - totalExtraction,
     );
 
+    // Generate random resource fees for each player ("draw issue cards")
+    const roundFees: Record<string, number> = {};
+    Object.keys(submissions).forEach((playerId) => {
+        // Generate a random fee between 0 and 10 (inclusive)
+        // Using seeded Math.random() for deterministic results
+        const fee = Math.floor(Math.random() * 11); // 0-10
+        roundFees[playerId] = fee;
+    });
+
+    // Apply fees to player rewards (subtract fees)
+    Object.keys(playerRewards).forEach((playerId) => {
+        playerRewards[playerId] -= roundFees[playerId];
+    });
+
     return {
         totalExtraction,
         newGlobalResources,
         playerRewards,
+        roundFees,
     };
+}
+
+/**
+ * Check for win/loss conditions after round processing
+ */
+function checkWinLossConditions(
+    game: Game,
+    roundResult: {
+        totalExtraction: number;
+        newGlobalResources: number;
+        playerRewards: Record<string, number>;
+        roundFees: Record<string, number>;
+    },
+): { gameEnded: boolean; winner?: string } {
+    const yProfit = game.config?.yProfit ?? 500;
+    const maxRounds = game.config?.xRounds ?? 20;
+    const currentRound = game.gameState?.currentRound ?? 1;
+
+    // Check if any player reached the profit target
+    for (const [playerId, reward] of Object.entries(
+        roundResult.playerRewards,
+    )) {
+        const currentResources = game.players[playerId]?.resources ?? 0;
+        const newTotal = currentResources + reward;
+
+        if (newTotal >= yProfit) {
+            return { gameEnded: true, winner: playerId };
+        }
+    }
+
+    // Check if global resources are depleted
+    if (roundResult.newGlobalResources <= 0) {
+        // Game ends, but no winner (stalemate)
+        return { gameEnded: true };
+    }
+
+    // Check if this was the last round
+    if (currentRound >= maxRounds) {
+        // Find player with most resources
+        let maxResources = -1;
+        let winner: string | undefined;
+
+        for (const [playerId, reward] of Object.entries(
+            roundResult.playerRewards,
+        )) {
+            const currentResources = game.players[playerId]?.resources ?? 0;
+            const newTotal = currentResources + reward;
+
+            if (newTotal > maxResources) {
+                maxResources = newTotal;
+                winner = playerId;
+            }
+        }
+
+        return { gameEnded: true, winner };
+    }
+
+    return { gameEnded: false };
 }
 
 /**
@@ -188,10 +276,7 @@ export async function advancePhase(
 
     const updates: Record<string, unknown> = {};
 
-    if (currentPhase === 'reveal') {
-        // Move to action phase
-        updates[`games/${gameId}/gameState/currentPhase`] = 'action';
-    } else if (currentPhase === 'action') {
+    if (currentPhase === 'action') {
         // Move to next round or end game
         if (currentRound >= maxRounds) {
             updates[`games/${gameId}/status`] = 'completed';
@@ -203,6 +288,7 @@ export async function advancePhase(
             updates[`games/${gameId}/gameState/currentPhase`] = 'extraction';
             updates[`games/${gameId}/gameState/roundSeed`] = nextSeed;
             updates[`games/${gameId}/gameState/revealedExtraction`] = null;
+            updates[`games/${gameId}/gameState/roundFees`] = null;
         }
     }
 
@@ -218,6 +304,7 @@ export function verifyRoundCalculation(
         totalExtraction: number;
         newGlobalResources: number;
         playerRewards: Record<string, number>;
+        roundFees: Record<string, number>;
     },
 ): boolean {
     const currentRound = game.gameState?.currentRound ?? 1;
@@ -228,13 +315,21 @@ export function verifyRoundCalculation(
     const clientResult = calculateRoundResult(game, submissions, seed);
 
     // Compare results
+    const rewardsMatch = Object.keys(clientResult.playerRewards).every(
+        (playerId) =>
+            clientResult.playerRewards[playerId] ===
+            hostResult.playerRewards[playerId],
+    );
+
+    const feesMatch = Object.keys(clientResult.roundFees).every(
+        (playerId) =>
+            clientResult.roundFees[playerId] === hostResult.roundFees[playerId],
+    );
+
     return (
         clientResult.totalExtraction === hostResult.totalExtraction &&
         clientResult.newGlobalResources === hostResult.newGlobalResources &&
-        Object.keys(clientResult.playerRewards).every(
-            (playerId) =>
-                clientResult.playerRewards[playerId] ===
-                hostResult.playerRewards[playerId],
-        )
+        rewardsMatch &&
+        feesMatch
     );
 }

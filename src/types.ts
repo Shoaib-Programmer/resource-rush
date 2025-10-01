@@ -16,6 +16,7 @@ export interface GameState {
     globalResources: number;
     revealedExtraction: number | null;
     roundSeed?: string; // Deterministic seed for the current round
+    roundFees?: Record<string, number>; // playerId -> resource fee for this round
 }
 
 export interface GameConfig {

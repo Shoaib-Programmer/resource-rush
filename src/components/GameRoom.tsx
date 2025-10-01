@@ -4,11 +4,10 @@ import { PlayerList } from './PlayerList';
 import { useGameStore } from '../store';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
-import startGame from '@/lib/startGame';
 import { ExtractionPhase } from './ExtractionPhase';
-import { RevealPhase } from './RevealPhase';
 import { ActionPhase } from './ActionPhase';
 import { useHostRoundProcessor } from '@/hooks/useHostRoundProcessor';
+import startGame from '@/lib/startGame';
 
 function GameRoom() {
     const { gameId } = useParams({ from: '/game/$gameId' });
@@ -81,17 +80,6 @@ function GameRoom() {
                         game={game}
                         gameId={gameId}
                         userId={user.uid}
-                    />
-                );
-            }
-
-            if (phase === 'reveal') {
-                return (
-                    <RevealPhase
-                        game={game}
-                        gameId={gameId}
-                        userId={user.uid}
-                        isHost={isHost}
                     />
                 );
             }

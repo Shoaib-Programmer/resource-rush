@@ -77,7 +77,7 @@ export function Lobby() {
             return;
         }
 
-        const gameId = joinId.trim();
+        const gameId = joinId.trim().toLowerCase();
         const gameRef = ref(db, `games/${gameId}`);
 
         try {
