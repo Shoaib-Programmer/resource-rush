@@ -133,10 +133,10 @@ export async function castVote(
     const currentVote = game.gameState.currentVote;
 
     // Check if already voted
-    if (
-        currentVote.votesFor.includes(voterId) ||
-        currentVote.votesAgainst.includes(voterId)
-    ) {
+    const votesFor = currentVote.votesFor ?? [];
+    const votesAgainst = currentVote.votesAgainst ?? [];
+
+    if (votesFor.includes(voterId) || votesAgainst.includes(voterId)) {
         throw new Error('You have already voted');
     }
 
@@ -144,12 +144,12 @@ export async function castVote(
     const updates: Record<string, unknown> = {};
     if (voteFor) {
         updates[`games/${gameId}/gameState/currentVote/votesFor`] = [
-            ...currentVote.votesFor,
+            ...votesFor,
             voterId,
         ];
     } else {
         updates[`games/${gameId}/gameState/currentVote/votesAgainst`] = [
-            ...currentVote.votesAgainst,
+            ...votesAgainst,
             voterId,
         ];
     }
@@ -179,13 +179,13 @@ async function checkAndResolveVote(gameId: string): Promise<void> {
         (playerId) => !game.players[playerId]?.isJailed,
     );
 
-    const totalVotes =
-        currentVote.votesFor.length + currentVote.votesAgainst.length;
+    const votesFor = currentVote.votesFor ?? [];
+    const votesAgainst = currentVote.votesAgainst ?? [];
+    const totalVotes = votesFor.length + votesAgainst.length;
 
     // All active players have voted
     if (totalVotes >= activePlayers.length) {
-        const votesPassed =
-            currentVote.votesFor.length > currentVote.votesAgainst.length;
+        const votesPassed = votesFor.length > votesAgainst.length;
 
         const updates: Record<string, unknown> = {};
         updates[`games/${gameId}/gameState/currentVote/resolved`] = true;

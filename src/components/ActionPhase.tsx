@@ -297,7 +297,7 @@ export function ActionPhase({
                                     <CardContent>
                                         {hasInvestigated ? (
                                             <div className="text-sm text-muted-foreground">
-                                                ✓ You already investigated{' '}
+                                                ✓ You investigated{' '}
                                                 <strong>
                                                     {game.players[
                                                         investigatedPlayer!
@@ -407,9 +407,10 @@ export function ActionPhase({
                                                             <Badge variant="default">
                                                                 For:{' '}
                                                                 {
-                                                                    currentVote
-                                                                        .votesFor
-                                                                        .length
+                                                                    (
+                                                                        currentVote.votesFor ??
+                                                                        []
+                                                                    ).length
                                                                 }
                                                             </Badge>
                                                         </div>
@@ -417,21 +418,23 @@ export function ActionPhase({
                                                             <Badge variant="secondary">
                                                                 Against:{' '}
                                                                 {
-                                                                    currentVote
-                                                                        .votesAgainst
-                                                                        .length
+                                                                    (
+                                                                        currentVote.votesAgainst ??
+                                                                        []
+                                                                    ).length
                                                                 }
                                                             </Badge>
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                {!currentVote.votesFor.includes(
-                                                    userId,
-                                                ) &&
-                                                !currentVote.votesAgainst.includes(
-                                                    userId,
-                                                ) ? (
+                                                {!(
+                                                    currentVote.votesFor ?? []
+                                                ).includes(userId) &&
+                                                !(
+                                                    currentVote.votesAgainst ??
+                                                    []
+                                                ).includes(userId) ? (
                                                     <div className="flex gap-2">
                                                         <Button
                                                             onClick={() =>
@@ -464,8 +467,10 @@ export function ActionPhase({
                                           currentVote.resolved ? (
                                             <div className="text-sm text-muted-foreground">
                                                 Vote resolved:{' '}
-                                                {currentVote.votesFor.length >
-                                                currentVote.votesAgainst.length
+                                                {(currentVote.votesFor ?? [])
+                                                    .length >
+                                                (currentVote.votesAgainst ?? [])
+                                                    .length
                                                     ? `${game.players[currentVote.targetPlayer]?.name} was arrested`
                                                     : 'Arrest was rejected'}
                                             </div>
