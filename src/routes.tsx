@@ -1,5 +1,6 @@
 import { createRootRoute, createRoute } from '@tanstack/react-router';
 import { lazy } from 'react';
+import ErrorComponent from './components/ErrorComponent';
 
 // Route-level code splitting
 const Root = lazy(() => import('./Root'));
@@ -7,7 +8,10 @@ const Lobby = lazy(() => import('./components/Lobby'));
 const GameRoom = lazy(() => import('./components/GameRoom'));
 
 // Root route (app shell)
-const rootRoute = createRootRoute({ component: Root });
+const rootRoute = createRootRoute({
+    component: Root,
+    errorComponent: ErrorComponent,
+});
 
 // "/" lobby route
 const lobbyRoute = createRoute({
