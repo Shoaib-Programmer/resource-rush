@@ -26,6 +26,7 @@ import {
     Sparkles,
     HelpCircle,
 } from 'lucide-react';
+import { REQUIRED_PLAYER_COUNT } from '../lib/gameConstants';
 
 export function Lobby() {
     const [joinId, setJoinId] = useState('');
@@ -85,12 +86,14 @@ export function Lobby() {
             if (snapshot.exists()) {
                 const gameData = snapshot.val();
                 if (gameData.status === 'waiting') {
-                    // Check player count (max 6 players)
+                    // Check player count (max players)
                     const currentPlayerCount = Object.keys(
                         gameData.players || {},
                     ).length;
-                    if (currentPlayerCount >= 6) {
-                        toast.error('Game is full! Maximum 6 players allowed.');
+                    if (currentPlayerCount >= REQUIRED_PLAYER_COUNT) {
+                        toast.error(
+                            `Game is full! Maximum ${REQUIRED_PLAYER_COUNT} players allowed.`,
+                        );
                         return;
                     }
 

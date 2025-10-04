@@ -1,6 +1,13 @@
 import { db, ref, get, update } from '@/firebase';
 import seedrandom from 'seedrandom';
 import type { Game, RoundSubmission } from '@/types';
+import {
+    FALLBACK_VALUES,
+    MODERATE_WIN_THRESHOLDS,
+    EVENT_CARD_FEE_RANGE,
+    getMinimumResourceThreshold,
+    MAX_ARRESTS_BEFORE_ELIMINATION,
+} from './gameConstants';
 
 /**
  * EXTRACTION PHASE AND WIN/LOSS CONDITIONS
@@ -112,10 +119,8 @@ export async function processRound(
     // Calculate round result using deterministic randomness
     const result = calculateRoundResult(game, submissions, seed);
 
-    // Prepare updates
     const updates: Record<string, unknown> = {};
 
-    // Update game state to action phase (skip reveal phase)
     updates[`games/${gameId}/gameState/currentPhase`] = 'action';
     updates[`games/${gameId}/gameState/globalResources`] =
         result.newGlobalResources; // Already includes resources per round from calculateRoundResult
@@ -128,12 +133,8 @@ export async function processRound(
     updates[`games/${gameId}/gameState/revealedExtraction`] =
         submissions[revealedPlayerId];
 
-    // Update player resources (extraction + fees) and check for elimination
-    // Progressive minimum resource threshold: round 1 = 0, round 2 = 3, round 3 = 5, etc.
-    const MINIMUM_RESOURCE_THRESHOLD = Math.max(
-        0,
-        (currentRound - 1) * 2 + (currentRound > 1 ? 1 : 0),
-    );
+    const MINIMUM_RESOURCE_THRESHOLD =
+        getMinimumResourceThreshold(currentRound);
 
     Object.entries(result.playerRewards).forEach(([playerId, netReward]) => {
         const currentResources = game.players[playerId]?.resources ?? 0;
@@ -145,18 +146,15 @@ export async function processRound(
         updates[`games/${gameId}/players/${playerId}/resources`] = newResources;
         updates[`games/${gameId}/players/${playerId}/totalProfit`] = newProfit;
 
-        // Check for player elimination
         if (newResources < MINIMUM_RESOURCE_THRESHOLD) {
             updates[`games/${gameId}/players/${playerId}/status`] = 'inactive';
         }
 
-        // Check if player has been arrested 2 or more times (eliminated after 2nd arrest)
-        if (timesArrested >= 2) {
+        if (timesArrested >= MAX_ARRESTS_BEFORE_ELIMINATION) {
             updates[`games/${gameId}/players/${playerId}/status`] = 'inactive';
         }
     });
 
-    // Check win/loss conditions
     const winLossResult = checkWinLossConditions(game, result);
     if (winLossResult.gameEnded) {
         updates[`games/${gameId}/status`] = 'finished';
@@ -183,7 +181,8 @@ export function calculateRoundResult(
     // Initialize RNG with seed for deterministic randomness
     seedrandom(seed, { global: true });
     const currentGlobalResources = game.gameState?.globalResources ?? 0;
-    const resourcesPerRound = game.config?.resourcesPerRound ?? 18;
+    const resourcesPerRound =
+        game.config?.resourcesPerRound ?? FALLBACK_VALUES.RESOURCES_PER_ROUND;
 
     // Calculate total extraction
     let totalExtraction = 0;
@@ -207,9 +206,11 @@ export function calculateRoundResult(
     // Generate random resource fees for each player ("draw issue cards")
     const roundFees: Record<string, number> = {};
     Object.keys(submissions).forEach((playerId) => {
-        // Generate a random fee between 0 and 10 (inclusive)
+        // Generate a random fee between min and max (inclusive)
         // Using seeded Math.random() for deterministic results
-        const fee = Math.floor(Math.random() * 11); // 0-10
+        const range = EVENT_CARD_FEE_RANGE.MAX - EVENT_CARD_FEE_RANGE.MIN + 1;
+        const fee =
+            Math.floor(Math.random() * range) + EVENT_CARD_FEE_RANGE.MIN;
         roundFees[playerId] = fee;
     });
 
@@ -239,8 +240,8 @@ function checkWinLossConditions(
         roundFees: Record<string, number>;
     },
 ): { gameEnded: boolean; winner?: string } {
-    const yProfit = game.config?.yProfit ?? 500;
-    const xRounds = game.config?.xRounds ?? 20;
+    const yProfit = game.config?.yProfit ?? FALLBACK_VALUES.Y_PROFIT;
+    const xRounds = game.config?.xRounds ?? FALLBACK_VALUES.X_ROUNDS;
     const currentRound = game.gameState?.currentRound ?? 1;
     const seed = game.gameState?.roundSeed ?? `${game}_round_${currentRound}`;
 
@@ -279,10 +280,18 @@ function checkWinLossConditions(
 
     // Check Moderate Win Conditions:
     // Win if: (3/4 * yProfit AND 1/2 * xRounds) OR (1/2 * yProfit AND 3/4 * xRounds)
-    const moderateProfitThresholdHigh = Math.floor(yProfit * 0.75);
-    const moderateProfitThresholdLow = Math.floor(yProfit * 0.5);
-    const moderateRoundsThresholdHigh = Math.floor(xRounds * 0.75);
-    const moderateRoundsThresholdLow = Math.floor(xRounds * 0.5);
+    const moderateProfitThresholdHigh = Math.floor(
+        yProfit * MODERATE_WIN_THRESHOLDS.PROFIT_HIGH,
+    );
+    const moderateProfitThresholdLow = Math.floor(
+        yProfit * MODERATE_WIN_THRESHOLDS.PROFIT_LOW,
+    );
+    const moderateRoundsThresholdHigh = Math.floor(
+        xRounds * MODERATE_WIN_THRESHOLDS.ROUNDS_HIGH,
+    );
+    const moderateRoundsThresholdLow = Math.floor(
+        xRounds * MODERATE_WIN_THRESHOLDS.ROUNDS_LOW,
+    );
 
     let totalModerateProfit = 0;
     Object.keys(game.players).forEach((playerId) => {
@@ -307,10 +316,8 @@ function checkWinLossConditions(
 
     // 3. Check Player Elimination
     // Progressive minimum resource threshold: round 1 = 0, round 2 = 3, round 3 = 5, etc.
-    const MINIMUM_RESOURCE_THRESHOLD = Math.max(
-        0,
-        (currentRound - 1) * 2 + (currentRound > 1 ? 1 : 0),
-    );
+    const MINIMUM_RESOURCE_THRESHOLD =
+        getMinimumResourceThreshold(currentRound);
 
     Object.entries(game.players).forEach(([playerId, player]) => {
         const resources = updatedPlayerResources[playerId] || 0;
@@ -323,8 +330,8 @@ function checkWinLossConditions(
             player.status = 'inactive';
         }
 
-        // Check if player has been arrested 2 or more times (eliminated after 2nd arrest)
-        if (timesArrested >= 2) {
+        // Check if player has been arrested too many times
+        if (timesArrested >= MAX_ARRESTS_BEFORE_ELIMINATION) {
             player.status = 'inactive';
         }
     });
@@ -393,7 +400,7 @@ export async function advancePhase(
 
     const currentPhase = game.gameState?.currentPhase;
     const currentRound = game.gameState?.currentRound ?? 1;
-    const maxRounds = game.config?.xRounds ?? 20;
+    const maxRounds = game.config?.xRounds ?? FALLBACK_VALUES.X_ROUNDS;
 
     const updates: Record<string, unknown> = {};
 

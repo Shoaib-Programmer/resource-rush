@@ -1,12 +1,21 @@
 import { db, ref, get, update } from '@/firebase';
 import type { Role } from '@/types';
+import {
+    DEFAULT_X_ROUNDS,
+    DEFAULT_Y_PROFIT,
+    DEFAULT_STARTING_GLOBAL_RESOURCES,
+    DEFAULT_RESOURCES_PER_ROUND,
+    DEFAULT_STARTING_RESOURCES,
+    REQUIRED_PLAYER_COUNT,
+    ROLE_RATIOS_SCALING,
+} from './gameConstants';
 
 export interface StartGameOptions {
-    initialGlobalResources?: number; // default 714 (6-player: 6 * 17 * 7)
-    xRounds?: number; // default 17 (6-player: 5 + 6*2)
-    yProfit?: number; // default 408 (6-player: 2 * 17 * 12)
-    resourcesPerRound?: number; // default 18 (6-player: 6 * 3)
-    startingResources?: number; // default 10
+    initialGlobalResources?: number;
+    xRounds?: number;
+    yProfit?: number;
+    resourcesPerRound?: number;
+    startingResources?: number;
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -55,8 +64,14 @@ function generateRoles(numPlayers: number): Role[] {
     // For 7+ players: scale proportionally
     // Ratio: ~33% Exploiters, ~50% Environmentalists, ~17% Moderates
     const roles: Role[] = [];
-    const numExploiters = Math.max(1, Math.floor(numPlayers * 0.33));
-    const numModerates = Math.max(1, Math.floor(numPlayers * 0.17));
+    const numExploiters = Math.max(
+        1,
+        Math.floor(numPlayers * ROLE_RATIOS_SCALING.EXPLOITERS),
+    );
+    const numModerates = Math.max(
+        1,
+        Math.floor(numPlayers * ROLE_RATIOS_SCALING.MODERATES),
+    );
     const numEnvironmentalists = numPlayers - numExploiters - numModerates;
 
     for (let i = 0; i < numExploiters; i++) roles.push('Exploiter');
@@ -77,11 +92,11 @@ export async function startGame(
     options: StartGameOptions = {},
 ) {
     const {
-        initialGlobalResources = 714, // 6 * 17 * 7
-        xRounds = 17, // 5 + 6*2
-        yProfit = 408, // 2 * 17 * 12
-        resourcesPerRound = 18, // 6 * 3
-        startingResources = 10,
+        initialGlobalResources = DEFAULT_STARTING_GLOBAL_RESOURCES,
+        xRounds = DEFAULT_X_ROUNDS,
+        yProfit = DEFAULT_Y_PROFIT,
+        resourcesPerRound = DEFAULT_RESOURCES_PER_ROUND,
+        startingResources = DEFAULT_STARTING_RESOURCES,
     } = options;
 
     // Read players atomically before composing the update
@@ -92,9 +107,9 @@ export async function startGame(
     const players: Record<string, { name?: string } | undefined> =
         playersSnap.val() ?? {};
     const playerIds = Object.keys(players);
-    if (playerIds.length !== 6) {
+    if (playerIds.length !== REQUIRED_PLAYER_COUNT) {
         throw new Error(
-            `Need exactly 6 players to start the game (current: ${playerIds.length}).`,
+            `Need exactly ${REQUIRED_PLAYER_COUNT} players to start the game (current: ${playerIds.length}).`,
         );
     }
 

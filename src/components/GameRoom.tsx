@@ -20,6 +20,14 @@ import { useHostRoundProcessor } from '@/hooks/useHostRoundProcessor';
 import { usePlayerRole } from '@/hooks/usePlayerRole';
 import { RoleDisplay } from './RoleDisplay';
 import startGame from '@/lib/startGame';
+import {
+    DEFAULT_X_ROUNDS,
+    DEFAULT_Y_PROFIT,
+    DEFAULT_STARTING_GLOBAL_RESOURCES,
+    DEFAULT_RESOURCES_PER_ROUND,
+    DEFAULT_STARTING_RESOURCES,
+    REQUIRED_PLAYER_COUNT,
+} from '@/lib/gameConstants';
 
 function GameRoom() {
     const { gameId } = useParams({ from: '/game/$gameId' });
@@ -27,14 +35,13 @@ function GameRoom() {
     const { game, user } = useGameStore();
     const playerRole = usePlayerRole(gameId, user?.uid);
 
-    // Game configuration state (6-player defaults)
     const [showConfig, setShowConfig] = useState(false);
     const [config, setConfig] = useState({
-        xRounds: 17, // 5 + 6*2
-        yProfit: 408, // 2 * 17 * 12
-        startingGlobalResources: 714, // 6 * 17 * 7
-        resourcesPerRound: 18, // 6 * 3
-        startingResources: 10,
+        xRounds: DEFAULT_X_ROUNDS,
+        yProfit: DEFAULT_Y_PROFIT,
+        startingGlobalResources: DEFAULT_STARTING_GLOBAL_RESOURCES,
+        resourcesPerRound: DEFAULT_RESOURCES_PER_ROUND,
+        startingResources: DEFAULT_STARTING_RESOURCES,
     });
 
     const isHost =
@@ -48,7 +55,10 @@ function GameRoom() {
 
     const playerCount = game?.players ? Object.keys(game.players).length : 0;
     const canStart =
-        isHost && game?.status === 'waiting' && !!gameId && playerCount === 6;
+        isHost &&
+        game?.status === 'waiting' &&
+        !!gameId &&
+        playerCount === REQUIRED_PLAYER_COUNT;
 
     const handleStartGame = async () => {
         if (!canStart || !gameId) return;
@@ -57,9 +67,9 @@ function GameRoom() {
         const playerCount = game?.players
             ? Object.keys(game.players).length
             : 0;
-        if (playerCount !== 6) {
+        if (playerCount !== REQUIRED_PLAYER_COUNT) {
             toast.error(
-                `Cannot start game! Need exactly 6 players (currently ${playerCount}).`,
+                `Cannot start game! Need exactly ${REQUIRED_PLAYER_COUNT} players (currently ${playerCount}).`,
             );
             return;
         }
@@ -223,17 +233,20 @@ function GameRoom() {
                             </div>
                             <div
                                 className={`text-sm font-medium ${
-                                    playerCount === 6
+                                    playerCount === REQUIRED_PLAYER_COUNT
                                         ? 'text-green-600'
-                                        : playerCount > 6
+                                        : playerCount > REQUIRED_PLAYER_COUNT
                                           ? 'text-red-600'
                                           : 'text-yellow-600'
                                 }`}
                             >
-                                Players: {playerCount}/6{' '}
-                                {playerCount < 6 && '(Need 6 to start)'}
-                                {playerCount > 6 && '(Too many players!)'}
-                                {playerCount === 6 && '✓ Ready to start!'}
+                                Players: {playerCount}/{REQUIRED_PLAYER_COUNT}{' '}
+                                {playerCount < REQUIRED_PLAYER_COUNT &&
+                                    `(Need ${REQUIRED_PLAYER_COUNT} to start)`}
+                                {playerCount > REQUIRED_PLAYER_COUNT &&
+                                    '(Too many players!)'}
+                                {playerCount === REQUIRED_PLAYER_COUNT &&
+                                    '✓ Ready to start!'}
                             </div>
                         </div>
                     )}
@@ -301,11 +314,11 @@ function GameRoom() {
                 {isHost && game?.status === 'waiting' && !showConfig && (
                     <Button
                         onClick={() => setShowConfig(true)}
-                        disabled={playerCount !== 6}
+                        disabled={playerCount !== REQUIRED_PLAYER_COUNT}
                     >
-                        {playerCount === 6
+                        {playerCount === REQUIRED_PLAYER_COUNT
                             ? 'Configure & Start Game'
-                            : `Need 6 Players (${playerCount}/6)`}
+                            : `Need ${REQUIRED_PLAYER_COUNT} Players (${playerCount}/${REQUIRED_PLAYER_COUNT})`}
                     </Button>
                 )}
             </div>
