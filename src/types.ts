@@ -5,6 +5,7 @@ export interface Player {
     name: string;
     isHost?: boolean;
     resources?: number;
+    totalProfit?: number; // Track total profit for win conditions
     timesArrested?: number;
     isJailed?: boolean;
     status?: 'active' | 'inactive';
@@ -35,6 +36,9 @@ export interface GameState {
 export interface GameConfig {
     xRounds: number; // Total number of rounds
     yProfit: number; // Target profit to win
+    startingGlobalResources: number; // Starting global resources
+    resourcesPerRound: number; // Resources generated each round
+    startingResources: number; // Resources each player starts with
 }
 
 export interface RoundSubmission {

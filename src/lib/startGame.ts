@@ -2,9 +2,10 @@ import { db, ref, get, update } from '@/firebase';
 import type { Role } from '@/types';
 
 export interface StartGameOptions {
-    initialGlobalResources?: number; // default 1000
-    xRounds?: number; // default 20
-    yProfit?: number; // default 500
+    initialGlobalResources?: number; // default 714 (6-player: 6 * 17 * 7)
+    xRounds?: number; // default 17 (6-player: 5 + 6*2)
+    yProfit?: number; // default 408 (6-player: 2 * 17 * 12)
+    resourcesPerRound?: number; // default 18 (6-player: 6 * 3)
     startingResources?: number; // default 10
 }
 
@@ -24,15 +25,45 @@ function generateRoles(numPlayers: number): Role[] {
     if (numPlayers === 2) return ['Exploiter', 'Environmentalist'];
     if (numPlayers === 3)
         return shuffle(['Exploiter', 'Environmentalist', 'Moderate']);
+    if (numPlayers === 4)
+        return shuffle([
+            'Exploiter',
+            'Environmentalist',
+            'Environmentalist',
+            'Moderate',
+        ]);
+    if (numPlayers === 5)
+        return shuffle([
+            'Exploiter',
+            'Exploiter',
+            'Environmentalist',
+            'Environmentalist',
+            'Moderate',
+        ]);
 
-    // For 4+: 1 Exploiter, 1 Environmentalist, rest Moderates, and add an extra Environmentalist for every 3 players
-    const roles: Role[] = ['Exploiter', 'Environmentalist'];
-    let remaining = numPlayers - roles.length;
-    const extraEnv = Math.floor(numPlayers / 3) - 1; // already added 1 env
-    for (let i = 0; i < extraEnv && remaining > 0; i++, remaining--) {
+    // 6-player setup: 2 Exploiters, 3 Environmentalists, 1 Moderate
+    if (numPlayers === 6)
+        return shuffle([
+            'Exploiter',
+            'Exploiter',
+            'Environmentalist',
+            'Environmentalist',
+            'Environmentalist',
+            'Moderate',
+        ]);
+
+    // For 7+ players: scale proportionally
+    // Ratio: ~33% Exploiters, ~50% Environmentalists, ~17% Moderates
+    const roles: Role[] = [];
+    const numExploiters = Math.max(1, Math.floor(numPlayers * 0.33));
+    const numModerates = Math.max(1, Math.floor(numPlayers * 0.17));
+    const numEnvironmentalists = numPlayers - numExploiters - numModerates;
+
+    for (let i = 0; i < numExploiters; i++) roles.push('Exploiter');
+    for (let i = 0; i < numEnvironmentalists; i++)
         roles.push('Environmentalist');
-    }
-    while (remaining-- > 0) roles.push('Moderate');
+    for (let i = 0; i < numModerates; i++) roles.push('Moderate');
+
     return shuffle(roles);
 }
 
@@ -46,9 +77,10 @@ export async function startGame(
     options: StartGameOptions = {},
 ) {
     const {
-        initialGlobalResources = 1000,
-        xRounds = 20,
-        yProfit = 500,
+        initialGlobalResources = 714, // 6 * 17 * 7
+        xRounds = 17, // 5 + 6*2
+        yProfit = 408, // 2 * 17 * 12
+        resourcesPerRound = 18, // 6 * 3
         startingResources = 10,
     } = options;
 
@@ -60,8 +92,10 @@ export async function startGame(
     const players: Record<string, { name?: string } | undefined> =
         playersSnap.val() ?? {};
     const playerIds = Object.keys(players);
-    if (playerIds.length < 2) {
-        throw new Error('Need at least 2 players to start the game.');
+    if (playerIds.length !== 6) {
+        throw new Error(
+            `Need exactly 6 players to start the game (current: ${playerIds.length}).`,
+        );
     }
 
     // Assign roles
@@ -75,7 +109,13 @@ export async function startGame(
 
     // Game-level fields
     updates[`games/${gameId}/status`] = 'in-progress';
-    updates[`games/${gameId}/config`] = { xRounds, yProfit };
+    updates[`games/${gameId}/config`] = {
+        xRounds,
+        yProfit,
+        startingGlobalResources: initialGlobalResources,
+        resourcesPerRound,
+        startingResources,
+    };
     updates[`games/${gameId}/gameState`] = {
         currentRound: 1,
         currentPhase: 'extraction',
@@ -87,6 +127,7 @@ export async function startGame(
     // Player public state and private roles
     playerIds.forEach((uid, idx) => {
         updates[`games/${gameId}/players/${uid}/resources`] = startingResources;
+        updates[`games/${gameId}/players/${uid}/totalProfit`] = 0;
         updates[`games/${gameId}/players/${uid}/timesArrested`] = 0;
         updates[`games/${gameId}/players/${uid}/isJailed`] = false;
         updates[`games/${gameId}/players/${uid}/status`] = 'active';

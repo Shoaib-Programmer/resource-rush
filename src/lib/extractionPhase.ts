@@ -118,7 +118,7 @@ export async function processRound(
     // Update game state to action phase (skip reveal phase)
     updates[`games/${gameId}/gameState/currentPhase`] = 'action';
     updates[`games/${gameId}/gameState/globalResources`] =
-        result.newGlobalResources;
+        result.newGlobalResources; // Already includes resources per round from calculateRoundResult
     updates[`games/${gameId}/gameState/roundFees`] = result.roundFees;
 
     // Randomly select one player's submission for revealedExtraction
@@ -129,24 +129,29 @@ export async function processRound(
         submissions[revealedPlayerId];
 
     // Update player resources (extraction + fees) and check for elimination
-    const MINIMUM_RESOURCE_THRESHOLD = 0;
-    const MAX_ARRESTS = 3;
+    // Progressive minimum resource threshold: round 1 = 0, round 2 = 3, round 3 = 5, etc.
+    const MINIMUM_RESOURCE_THRESHOLD = Math.max(
+        0,
+        (currentRound - 1) * 2 + (currentRound > 1 ? 1 : 0),
+    );
 
     Object.entries(result.playerRewards).forEach(([playerId, netReward]) => {
         const currentResources = game.players[playerId]?.resources ?? 0;
+        const currentProfit = game.players[playerId]?.totalProfit ?? 0;
         const newResources = Math.max(0, currentResources + netReward);
-        const role = game.privatePlayerInfo?.[playerId]?.role;
+        const newProfit = currentProfit + Math.max(0, netReward); // Only count positive gains
         const timesArrested = game.players[playerId]?.timesArrested ?? 0;
 
         updates[`games/${gameId}/players/${playerId}/resources`] = newResources;
+        updates[`games/${gameId}/players/${playerId}/totalProfit`] = newProfit;
 
         // Check for player elimination
-        if (newResources <= MINIMUM_RESOURCE_THRESHOLD) {
+        if (newResources < MINIMUM_RESOURCE_THRESHOLD) {
             updates[`games/${gameId}/players/${playerId}/status`] = 'inactive';
         }
 
-        // Check if Exploiter has been arrested too many times
-        if (role === 'Exploiter' && timesArrested >= MAX_ARRESTS) {
+        // Check if player has been arrested 2 or more times (eliminated after 2nd arrest)
+        if (timesArrested >= 2) {
             updates[`games/${gameId}/players/${playerId}/status`] = 'inactive';
         }
     });
@@ -178,6 +183,7 @@ export function calculateRoundResult(
     // Initialize RNG with seed for deterministic randomness
     seedrandom(seed, { global: true });
     const currentGlobalResources = game.gameState?.globalResources ?? 0;
+    const resourcesPerRound = game.config?.resourcesPerRound ?? 18;
 
     // Calculate total extraction
     let totalExtraction = 0;
@@ -191,11 +197,12 @@ export function calculateRoundResult(
         playerRewards[playerId] = amount;
     });
 
-    // Deduct from global resources
-    const newGlobalResources = Math.max(
+    // Deduct extraction from global resources, then add resources generated per round
+    const afterExtraction = Math.max(
         0,
         currentGlobalResources - totalExtraction,
     );
+    const newGlobalResources = afterExtraction + resourcesPerRound;
 
     // Generate random resource fees for each player ("draw issue cards")
     const roundFees: Record<string, number> = {};
@@ -256,12 +263,13 @@ function checkWinLossConditions(
     }
 
     // 2. Check Exploiter Win: if (totalExploiterProfit >= yProfit)
-    // Calculate total profit for Exploiters
+    // Calculate total profit for Exploiters using totalProfit tracking
     let totalExploiterProfit = 0;
     Object.keys(game.players).forEach((playerId) => {
         const role = game.privatePlayerInfo?.[playerId]?.role;
         if (role === 'Exploiter') {
-            totalExploiterProfit += updatedPlayerResources[playerId] || 0;
+            const profit = game.players[playerId]?.totalProfit ?? 0;
+            totalExploiterProfit += profit;
         }
     });
 
@@ -269,26 +277,54 @@ function checkWinLossConditions(
         return { gameEnded: true, winner: 'Exploiters' };
     }
 
+    // Check Moderate Win Conditions:
+    // Win if: (3/4 * yProfit AND 1/2 * xRounds) OR (1/2 * yProfit AND 3/4 * xRounds)
+    const moderateProfitThresholdHigh = Math.floor(yProfit * 0.75);
+    const moderateProfitThresholdLow = Math.floor(yProfit * 0.5);
+    const moderateRoundsThresholdHigh = Math.floor(xRounds * 0.75);
+    const moderateRoundsThresholdLow = Math.floor(xRounds * 0.5);
+
+    let totalModerateProfit = 0;
+    Object.keys(game.players).forEach((playerId) => {
+        const role = game.privatePlayerInfo?.[playerId]?.role;
+        if (role === 'Moderate') {
+            const profit = game.players[playerId]?.totalProfit ?? 0;
+            totalModerateProfit += profit;
+        }
+    });
+
+    // Moderate wins if they achieve balanced goals
+    const condition1 =
+        totalModerateProfit >= moderateProfitThresholdHigh &&
+        currentRound >= moderateRoundsThresholdLow;
+    const condition2 =
+        totalModerateProfit >= moderateProfitThresholdLow &&
+        currentRound >= moderateRoundsThresholdHigh;
+
+    if (condition1 || condition2) {
+        return { gameEnded: true, winner: 'Moderates' };
+    }
+
     // 3. Check Player Elimination
-    // Define minimum resource thresholds (can be adjusted based on game design)
-    // For now, using a simple threshold: players with 0 resources are eliminated
-    const MINIMUM_RESOURCE_THRESHOLD = 0;
-    const MAX_ARRESTS = 3; // Maximum times an Exploiter can be arrested
+    // Progressive minimum resource threshold: round 1 = 0, round 2 = 3, round 3 = 5, etc.
+    const MINIMUM_RESOURCE_THRESHOLD = Math.max(
+        0,
+        (currentRound - 1) * 2 + (currentRound > 1 ? 1 : 0),
+    );
 
     Object.entries(game.players).forEach(([playerId, player]) => {
         const resources = updatedPlayerResources[playerId] || 0;
-        const role = game.privatePlayerInfo?.[playerId]?.role;
         const timesArrested = player.timesArrested ?? 0;
 
         // Check if player is below minimum threshold
-        if (resources <= MINIMUM_RESOURCE_THRESHOLD) {
+        if (resources < MINIMUM_RESOURCE_THRESHOLD) {
             // Mark player as eliminated (inactive)
             // This will be applied in the update
             player.status = 'inactive';
         }
 
-        // Check if Exploiter has been arrested too many times
-        if (role === 'Exploiter' && timesArrested >= MAX_ARRESTS) {
+        // Check if player has been arrested 2 or more times (eliminated after 2nd arrest)
+        if (timesArrested >= 2) {
             player.status = 'inactive';
         }
     });

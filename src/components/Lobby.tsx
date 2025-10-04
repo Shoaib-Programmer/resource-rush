@@ -85,6 +85,15 @@ export function Lobby() {
             if (snapshot.exists()) {
                 const gameData = snapshot.val();
                 if (gameData.status === 'waiting') {
+                    // Check player count (max 6 players)
+                    const currentPlayerCount = Object.keys(
+                        gameData.players || {},
+                    ).length;
+                    if (currentPlayerCount >= 6) {
+                        toast.error('Game is full! Maximum 6 players allowed.');
+                        return;
+                    }
+
                     // Add player to the game
                     const playerRef = ref(db, `games/${gameId}/players`);
                     await update(playerRef, {
